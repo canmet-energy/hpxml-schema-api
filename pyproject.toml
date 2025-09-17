@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "hpxml-schema-api"
 description = "HPXML Schema API - Programmatic access to HPXML schema metadata, validation, and form generation"
 readme = "README.md"
-license = {text = "MIT"}
+license = {text = "GPL-3.0-or-later"}
 authors = [
     {name = "CANMET Energy", email = "canmet-energy@nrcan-rncan.gc.ca"}
 ]
@@ -15,7 +15,7 @@ classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: MIT License",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",

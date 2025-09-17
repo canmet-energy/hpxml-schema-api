@@ -1,0 +1,103 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the
+// README at: https://github.com/devcontainers/templates/tree/main/src/universal
+{
+	"name": "H2K_HPXML",
+	"build": {
+		"dockerfile": "./Dockerfile",
+		"context": ".."
+	},
+	"containerEnv": {
+		"NODE_TLS_REJECT_UNAUTHORIZED": "0",
+		"UV_PROJECT_ENVIRONMENT": "${containerWorkspaceFolder}/.venv",
+		"UV_PYTHON_PREFERENCE": "managed"
+	},
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"ms-azuretools.vscode-docker",
+				"karyfoundation.idf",
+				"ms-python.python",
+				"ms-python.black-formatter",
+				"ms-python.isort",
+				"ms-python.mypy-type-checker",
+				"mechatroner.rainbow-csv",
+				"janisdd.vscode-edit-csv",
+				"qwtel.sqlite-viewer",
+				"ms-toolsai.jupyter",
+				"openai.chatgpt"
+			],
+			"settings": {
+				"files.associations": {
+					"*.h2k": "xml",
+					"*.hpxml": "xml",
+					"*.sql": "sqlite"
+				},
+				"python.terminal.activateEnvironment": false,
+				"python.defaultInterpreterPath": "./.venv/bin/python",
+				"python.terminal.activateEnvInCurrentTerminal": false,
+				"python.terminal.executeInFileDir": false,
+				"python.formatting.provider": "black",
+				"python.linting.enabled": true,
+				"python.linting.mypyEnabled": true,
+				"editor.formatOnSave": true,
+				"editor.codeActionsOnSave": {
+					"source.organizeImports": "explicit"
+				},
+				"terminal.integrated.profiles.linux": {
+					"bash": {
+						"path": "bash",
+						"icon": "terminal-bash"
+					},
+					"uv-shell": {
+						"path": "bash",
+						"icon": "terminal-bash",
+						"args": [],
+						"env": {
+							"UV_PROJECT_ENVIRONMENT": "${workspaceFolder}/.venv"
+						}
+					}
+				},
+				"terminal.integrated.defaultProfile.linux": "uv-shell"
+			}
+		}
+	},
+	"remoteEnv": {
+		"NODE_EXTRA_CA_CERTS": "/etc/ssl/certs/ca-certificates.crt",
+		"SSL_CERT_FILE": "/etc/ssl/certs/ca-certificates.crt",
+		"REQUESTS_CA_BUNDLE": "/etc/ssl/certs/ca-certificates.crt",
+		"AWS_CA_BUNDLE": "/etc/ssl/certs/ca-certificates.crt",
+		"UV_INSECURE_HOST": "pypi.org files.pythonhosted.org github.com",
+		"UV_NATIVE_TLS": "true"
+	},
+	"forwardPorts": [
+		8080,
+		8000,
+		3000
+	],
+	"portsAttributes": {
+		"8080": {
+			"visibility": "public",
+			"protocol": "http",
+			"label": "Claude Code Auth"
+		},
+		"8000": {
+			"visibility": "public",
+			"protocol": "http",
+			"label": "Development Server"
+		},
+		"3000": {
+			"visibility": "public",
+			"protocol": "http",
+			"label": "Web App"
+		}
+	},
+	"mounts": [
+		// AWS credentials support - works for both Windows and Unix-like systems
+		"source=${localEnv:HOME}${localEnv:USERPROFILE}/.aws,target=/home/vscode/.aws,type=bind,readonly",
+		// Docker socket for Docker-in-Docker support
+		"source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind"
+	],
+	"postCreateCommand": "sudo chgrp docker /var/run/docker.sock && .devcontainer/scripts/certificates.sh; uv venv --clear ; uv pip install -e '.[dev]'",
+	"containerUser": "vscode",
+	"remoteUser": "vscode"
+}
