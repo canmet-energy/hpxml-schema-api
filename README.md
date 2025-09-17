@@ -501,6 +501,3 @@ We welcome contributions! Please see our contributing guidelines and:
 - Add tests for new functionality
 - Update documentation as needed
 - Ensure all tests pass before submitting PRs
-
-### License
-This project is licensed under the MIT License - see the LICENSE file for details.
