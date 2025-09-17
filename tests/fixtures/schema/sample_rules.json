@@ -1,0 +1,362 @@
+{
+  "schema_version": "2023-09",
+  "source": {
+    "xsd": "/workspaces/h2k-hpxml/tests/fixtures/schema/sample_hpxml.xsd",
+    "schematron": "/workspaces/h2k-hpxml/tests/fixtures/schema/sample_schematron.xml"
+  },
+  "root": {
+    "xpath": "/HPXML",
+    "name": "HPXML",
+    "kind": "section",
+    "data_type": null,
+    "min_occurs": 1,
+    "max_occurs": "1",
+    "repeatable": false,
+    "enum_values": [],
+    "description": null,
+    "validations": [],
+    "notes": [],
+    "children": [
+      {
+        "xpath": "/HPXML/Building",
+        "name": "Building",
+        "kind": "section",
+        "data_type": null,
+        "min_occurs": 1,
+        "max_occurs": "1",
+        "repeatable": false,
+        "enum_values": [],
+        "description": null,
+        "validations": [],
+        "notes": [],
+        "children": [
+          {
+            "xpath": "/HPXML/Building/BuildingDetails",
+            "name": "BuildingDetails",
+            "kind": "section",
+            "data_type": null,
+            "min_occurs": 1,
+            "max_occurs": "1",
+            "repeatable": false,
+            "enum_values": [],
+            "description": null,
+            "validations": [],
+            "notes": [],
+            "children": [
+              {
+                "xpath": "/HPXML/Building/BuildingDetails/Enclosure",
+                "name": "Enclosure",
+                "kind": "section",
+                "data_type": null,
+                "min_occurs": 1,
+                "max_occurs": "1",
+                "repeatable": false,
+                "enum_values": [],
+                "description": null,
+                "validations": [],
+                "notes": [],
+                "children": [
+                  {
+                    "xpath": "/HPXML/Building/BuildingDetails/Enclosure/Walls",
+                    "name": "Walls",
+                    "kind": "section",
+                    "data_type": null,
+                    "min_occurs": 1,
+                    "max_occurs": "1",
+                    "repeatable": false,
+                    "enum_values": [],
+                    "description": null,
+                    "validations": [],
+                    "notes": [],
+                    "children": [
+                      {
+                        "xpath": "/HPXML/Building/BuildingDetails/Enclosure/Walls/Wall",
+                        "name": "Wall",
+                        "kind": "section",
+                        "data_type": null,
+                        "min_occurs": 0,
+                        "max_occurs": "unbounded",
+                        "repeatable": true,
+                        "enum_values": [],
+                        "description": null,
+                        "validations": [
+                          {
+                            "message": "Wall must have a SystemIdentifier.",
+                            "severity": "error",
+                            "test": "count(h:SystemIdentifier) = 1",
+                            "context": "/h:HPXML/h:Building/h:BuildingDetails/h:Enclosure/h:Walls/h:Wall"
+                          },
+                          {
+                            "message": "WallArea must be positive.",
+                            "severity": "error",
+                            "test": "number(h:WallArea) > 0",
+                            "context": "/h:HPXML/h:Building/h:BuildingDetails/h:Enclosure/h:Walls/h:Wall"
+                          }
+                        ],
+                        "notes": [],
+                        "children": [
+                          {
+                            "xpath": "/HPXML/Building/BuildingDetails/Enclosure/Walls/Wall/SystemIdentifier",
+                            "name": "SystemIdentifier",
+                            "kind": "section",
+                            "data_type": null,
+                            "min_occurs": 1,
+                            "max_occurs": "1",
+                            "repeatable": false,
+                            "enum_values": [],
+                            "description": null,
+                            "validations": [],
+                            "notes": [],
+                            "children": [
+                              {
+                                "xpath": "/HPXML/Building/BuildingDetails/Enclosure/Walls/Wall/SystemIdentifier/id",
+                                "name": "id",
+                                "kind": "field",
+                                "data_type": "string",
+                                "min_occurs": 1,
+                                "max_occurs": "1",
+                                "repeatable": false,
+                                "enum_values": [],
+                                "description": null,
+                                "validations": [],
+                                "notes": [],
+                                "children": []
+                              }
+                            ]
+                          },
+                          {
+                            "xpath": "/HPXML/Building/BuildingDetails/Enclosure/Walls/Wall/ExteriorAdjacentTo",
+                            "name": "ExteriorAdjacentTo",
+                            "kind": "field",
+                            "data_type": "string",
+                            "min_occurs": 1,
+                            "max_occurs": "1",
+                            "repeatable": false,
+                            "enum_values": [
+                              "outside",
+                              "attic",
+                              "garage"
+                            ],
+                            "description": null,
+                            "validations": [],
+                            "notes": [],
+                            "children": []
+                          },
+                          {
+                            "xpath": "/HPXML/Building/BuildingDetails/Enclosure/Walls/Wall/WallArea",
+                            "name": "WallArea",
+                            "kind": "field",
+                            "data_type": "decimal",
+                            "min_occurs": 1,
+                            "max_occurs": "1",
+                            "repeatable": false,
+                            "enum_values": [],
+                            "description": null,
+                            "validations": [],
+                            "notes": [],
+                            "children": []
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "xpath": "/HPXML/Building/BuildingDetails/Enclosure/Windows",
+                    "name": "Windows",
+                    "kind": "section",
+                    "data_type": null,
+                    "min_occurs": 1,
+                    "max_occurs": "1",
+                    "repeatable": false,
+                    "enum_values": [],
+                    "description": null,
+                    "validations": [],
+                    "notes": [],
+                    "children": [
+                      {
+                        "xpath": "/HPXML/Building/BuildingDetails/Enclosure/Windows/Window",
+                        "name": "Window",
+                        "kind": "section",
+                        "data_type": null,
+                        "min_occurs": 0,
+                        "max_occurs": "unbounded",
+                        "repeatable": true,
+                        "enum_values": [],
+                        "description": null,
+                        "validations": [
+                          {
+                            "message": "SHGC should be positive.",
+                            "severity": "warn",
+                            "test": "number(h:SHGC) > 0",
+                            "context": "/h:HPXML/h:Building/h:BuildingDetails/h:Enclosure/h:Windows/h:Window"
+                          },
+                          {
+                            "message": "High SHGC; check daylighting assumptions.",
+                            "severity": "warn",
+                            "test": "number(h:SHGC) > 0.6",
+                            "context": "/h:HPXML/h:Building/h:BuildingDetails/h:Enclosure/h:Windows/h:Window"
+                          }
+                        ],
+                        "notes": [],
+                        "children": [
+                          {
+                            "xpath": "/HPXML/Building/BuildingDetails/Enclosure/Windows/Window/SystemIdentifier",
+                            "name": "SystemIdentifier",
+                            "kind": "section",
+                            "data_type": null,
+                            "min_occurs": 1,
+                            "max_occurs": "1",
+                            "repeatable": false,
+                            "enum_values": [],
+                            "description": null,
+                            "validations": [],
+                            "notes": [],
+                            "children": [
+                              {
+                                "xpath": "/HPXML/Building/BuildingDetails/Enclosure/Windows/Window/SystemIdentifier/id",
+                                "name": "id",
+                                "kind": "field",
+                                "data_type": "string",
+                                "min_occurs": 1,
+                                "max_occurs": "1",
+                                "repeatable": false,
+                                "enum_values": [],
+                                "description": null,
+                                "validations": [],
+                                "notes": [],
+                                "children": []
+                              }
+                            ]
+                          },
+                          {
+                            "xpath": "/HPXML/Building/BuildingDetails/Enclosure/Windows/Window/Area",
+                            "name": "Area",
+                            "kind": "field",
+                            "data_type": "decimal",
+                            "min_occurs": 1,
+                            "max_occurs": "1",
+                            "repeatable": false,
+                            "enum_values": [],
+                            "description": null,
+                            "validations": [],
+                            "notes": [],
+                            "children": []
+                          },
+                          {
+                            "xpath": "/HPXML/Building/BuildingDetails/Enclosure/Windows/Window/SHGC",
+                            "name": "SHGC",
+                            "kind": "field",
+                            "data_type": "decimal",
+                            "min_occurs": 1,
+                            "max_occurs": "1",
+                            "repeatable": false,
+                            "enum_values": [],
+                            "description": null,
+                            "validations": [],
+                            "notes": [],
+                            "children": []
+                          },
+                          {
+                            "xpath": "/HPXML/Building/BuildingDetails/Enclosure/Windows/Window/UFactor",
+                            "name": "UFactor",
+                            "kind": "field",
+                            "data_type": "decimal",
+                            "min_occurs": 1,
+                            "max_occurs": "1",
+                            "repeatable": false,
+                            "enum_values": [],
+                            "description": null,
+                            "validations": [],
+                            "notes": [],
+                            "children": []
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "xpath": "/HPXML/Building/BuildingDetails/Enclosure/Roofs",
+                    "name": "Roofs",
+                    "kind": "section",
+                    "data_type": null,
+                    "min_occurs": 0,
+                    "max_occurs": "1",
+                    "repeatable": false,
+                    "enum_values": [],
+                    "description": null,
+                    "validations": [],
+                    "notes": [],
+                    "children": [
+                      {
+                        "xpath": "/HPXML/Building/BuildingDetails/Enclosure/Roofs/Roof",
+                        "name": "Roof",
+                        "kind": "section",
+                        "data_type": null,
+                        "min_occurs": 0,
+                        "max_occurs": "unbounded",
+                        "repeatable": true,
+                        "enum_values": [],
+                        "description": null,
+                        "validations": [],
+                        "notes": [],
+                        "children": [
+                          {
+                            "xpath": "/HPXML/Building/BuildingDetails/Enclosure/Roofs/Roof/SystemIdentifier",
+                            "name": "SystemIdentifier",
+                            "kind": "section",
+                            "data_type": null,
+                            "min_occurs": 1,
+                            "max_occurs": "1",
+                            "repeatable": false,
+                            "enum_values": [],
+                            "description": null,
+                            "validations": [],
+                            "notes": [],
+                            "children": [
+                              {
+                                "xpath": "/HPXML/Building/BuildingDetails/Enclosure/Roofs/Roof/SystemIdentifier/id",
+                                "name": "id",
+                                "kind": "field",
+                                "data_type": "string",
+                                "min_occurs": 1,
+                                "max_occurs": "1",
+                                "repeatable": false,
+                                "enum_values": [],
+                                "description": null,
+                                "validations": [],
+                                "notes": [],
+                                "children": []
+                              }
+                            ]
+                          },
+                          {
+                            "xpath": "/HPXML/Building/BuildingDetails/Enclosure/Roofs/Roof/RoofType",
+                            "name": "RoofType",
+                            "kind": "field",
+                            "data_type": "string",
+                            "min_occurs": 0,
+                            "max_occurs": "1",
+                            "repeatable": false,
+                            "enum_values": [
+                              "hip",
+                              "gable",
+                              "flat"
+                            ],
+                            "description": null,
+                            "validations": [],
+                            "notes": [],
+                            "children": []
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

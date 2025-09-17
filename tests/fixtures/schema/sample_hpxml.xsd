@@ -1,0 +1,106 @@
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns="http://hpxmlonline.com/2023/09" targetNamespace="http://hpxmlonline.com/2023/09" elementFormDefault="qualified" version="4.0">
+
+  <xs:simpleType name="ExteriorAdjacentToType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="outside"/>
+      <xs:enumeration value="attic"/>
+      <xs:enumeration value="garage"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="RoofType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="hip"/>
+      <xs:enumeration value="gable"/>
+      <xs:enumeration value="flat"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:complexType name="SystemIdentifier">
+    <xs:sequence>
+      <xs:element name="id" type="xs:string"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:element name="SystemIdentifier" type="SystemIdentifier"/>
+
+  <xs:complexType name="SystemIdentifiersInfoType">
+    <xs:sequence>
+      <xs:element ref="SystemIdentifier" minOccurs="1" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:element name="SystemIdentifiersInfo" type="SystemIdentifiersInfoType"/>
+
+  <xs:complexType name="WallType">
+    <xs:sequence>
+      <xs:element ref="SystemIdentifier"/>
+      <xs:element name="ExteriorAdjacentTo" type="ExteriorAdjacentToType"/>
+      <xs:element name="WallArea" type="xs:decimal"/>
+      <xs:element ref="SystemIdentifiersInfo" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="WindowType">
+    <xs:sequence>
+      <xs:element name="SystemIdentifier" type="SystemIdentifier"/>
+      <xs:element name="Area" type="xs:decimal"/>
+      <xs:element name="SHGC" type="xs:decimal"/>
+      <xs:element name="UFactor" type="xs:decimal"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="RoofTypeDefinition">
+    <xs:sequence>
+      <xs:element name="SystemIdentifier" type="SystemIdentifier"/>
+      <xs:element name="RoofType" type="RoofType" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:element name="HPXML">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="Building">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="BuildingDetails">
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element name="Enclosure">
+                      <xs:complexType>
+                        <xs:sequence>
+                          <xs:element name="Walls">
+                            <xs:complexType>
+                              <xs:sequence>
+                                <xs:element name="Wall" type="WallType" minOccurs="0" maxOccurs="unbounded"/>
+                              </xs:sequence>
+                            </xs:complexType>
+                          </xs:element>
+                          <xs:element name="Windows">
+                            <xs:complexType>
+                              <xs:sequence>
+                                <xs:element name="Window" type="WindowType" minOccurs="0" maxOccurs="unbounded"/>
+                              </xs:sequence>
+                            </xs:complexType>
+                          </xs:element>
+                          <xs:element name="Roofs" minOccurs="0">
+                            <xs:complexType>
+                              <xs:sequence>
+                                <xs:element name="Roof" type="RoofTypeDefinition" minOccurs="0" maxOccurs="unbounded"/>
+                              </xs:sequence>
+                            </xs:complexType>
+                          </xs:element>
+                        </xs:sequence>
+                      </xs:complexType>
+                    </xs:element>
+                  </xs:sequence>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+</xs:schema>
