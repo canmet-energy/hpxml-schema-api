@@ -5,18 +5,20 @@ import pytest
 from fastapi.testclient import TestClient
 
 from hpxml_schema_api.app import (
-    app,
-    get_repository,
     RulesRepository,
     ValidationRequest,
     ValidationResponse,
+    app,
+    get_repository,
 )
 
-FIXTURE_RULES = Path(__file__).resolve().parent / "fixtures" / "schema" / "sample_rules.json"
+FIXTURE_RULES = (
+    Path(__file__).resolve().parent / "fixtures" / "schema" / "sample_rules.json"
+)
 
 
 def override_repository():
-    return RulesRepository(FIXTURE_RULES)
+    return RulesRepository.from_fixture(FIXTURE_RULES)
 
 
 def create_client():

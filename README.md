@@ -1,503 +1,765 @@
 # HPXML Schema API
 
-## 🎯 Project Overview
-The HPXML Schema API is a standalone Python package that provides programmatic access to HPXML schema metadata, validation rules, and field dependencies. It enables dynamic form generation, validation, and schema exploration for HPXML documents across any HPXML-based application.
+A lightweight REST + (placeholder) GraphQL service for HPXML schema exploration and basic field validation. Focus areas: fast schema tree access, simple value checks, caching, and exportable API/GraphQL schemas. Advanced “enhanced/document” validation endpoints exist under versioned routes but are experimental and may change.
 
-### Key Features
-- **FastAPI-based REST API** for HPXML schema exploration
-- **Dynamic XSD parsing** with configurable depth limits
-- **High-performance caching** with TTL and file change detection
-- **Schematron rule integration** for advanced validation
-- **Form generation utilities** for UI development
-- **Comprehensive test coverage** with 45+ automated tests
+[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-green.svg)](https://fastapi.tiangolo.com/)
+[![Tests](https://img.shields.io/badge/tests-274%20passing-brightgreen.svg)](#testing)
 
-### Use Cases
-- **Form Generation**: Build dynamic forms based on HPXML schema definitions
-- **Data Validation**: Validate HPXML documents against schema rules
-- **Schema Exploration**: Navigate and understand HPXML structure programmatically
-- **Tool Integration**: Integrate HPXML schema awareness into existing applications
+## 🚀 Quick Start
 
-## ✅ Completed Features (Phase 1 & 2)
+### Installation
 
-### Infrastructure
-- **Enhanced XSD Parser**: Configurable depth limits and extension handling with 52 comprehensive tests
-- **Dynamic Caching System**: TTL-based in-memory cache with automatic file change detection
-- **Extension Recursion Solution**: Intelligent handling of 725+ XSD extensions using cached parser
-- **Data Models**: Type-safe dataclasses for rules, validations, and node structures
-- **Parser-Only Architecture**: Simplified design using only the cached parser (JSON snapshots removed as of v0.3.0)
-
-### API Service (v0.2.0)
-- **FastAPI Application**: Production-ready service with async support
-- **Endpoints**:
-  - `GET /health` - Service health check with schema version
-  - `GET /metadata` - Schema metadata with ETag caching
-  - `GET /schema-version` - Detailed version information
-  - `GET /tree` - Hierarchical schema navigation with depth control
-  - `GET /fields` - Field-level details for form generation
-  - `GET /search` - Full-text search with filtering and pagination
-  - `POST /validate` - Field validation against schema rules
-- **Features**:
-  - HTTP caching with ETag and Last-Modified headers
-  - Custom error handlers with detailed messages
-  - OpenAPI 3.0 documentation (Swagger UI at `/docs`)
-  - Response validation with Pydantic models
-  - Query parameter validation and limits
-
-### Enhanced Extension Handling
-- **Configurable Limits**: Control inheritance depth (default: 3) and recursion depth (default: 10)
-- **Extension Metadata**: Rich metadata for truncated chains and extension points
-- **Performance**: Sub-5ms cached responses (JSON snapshots eliminated)
-- **Memory Efficiency**: ~10MB indexed metadata (no file-based snapshots)
-- **Automatic Detection**: File change detection with cache invalidation
-
-### Testing & Documentation
-- **Test Coverage**: 52 comprehensive tests (100% passing)
-  - Extension Handling: 10 tests for depth limits, metadata tracking
-  - Caching: 12 tests for TTL, file staleness, performance
-  - API Integration: 19 tests for endpoints, validation, error handling
-  - Legacy Compatibility: 11 tests ensuring existing functionality preserved
-- **API Reference**: Complete documentation at `docs/api/API_REFERENCE.md`
-- **Client Examples**: Python client library at `examples/api_client.py`
-- **Technical Deep Dive**: `BETTER_EXTENSION_SOLUTION.md` explains the extension solution
-
-## 🏗️ Architecture (Updated)
-
-### New Dynamic Architecture
-```
-┌─────────────────┐     ┌──────────────────┐     ┌─────────────────────┐
-│  HPXML Schema   │────▶│  Enhanced Parser │────▶│   Dynamic Cache     │
-│   (XSD + SCH)   │     │  (Configurable)  │     │  (TTL + File Watch) │
-└─────────────────┘     └──────────────────┘     └─────────────────────┘
-                                │                            │
-                                ▼                            ▼
-┌─────────────────┐     ┌──────────────────┐     ┌─────────────────────┐
-│    UI Client    │◀────│    FastAPI       │◀────│  Cached Repository  │
-│  (Forms, Valid) │     │    Service       │     │  (Sub-5ms Response) │
-└─────────────────┘     └──────────────────┘     └─────────────────────┘
-                                │
-                                ▼
-                        ┌──────────────────┐
-                        │  JSON Snapshots  │
-                        │   (Fallback)     │
-                        └──────────────────┘
-```
-
-### Extension Handling Flow
-```
-XSD Complex Type → Extension Chain Analysis → Depth Check → Cache/Return
-     │                      │                     │             │
-     ▼                      ▼                     ▼             ▼
-inheritance_chains    max_extension_depth   Truncate?    Rich Metadata
-  pre-indexed           (configurable)    (w/ notes)   (for UI hints)
-```
-
-## 📊 Performance Characteristics (Updated)
-
-| Metric | Before (JSON Snapshots) | After (Dynamic Cache) | Improvement |
-|--------|-------------------------|----------------------|-------------|
-| **Startup Time** | N/A (snapshots removed) | ~50ms (index only) | Parser-only |
-| **Response Time** | 50ms+ (JSON parse) | <5ms (cached) | 10x faster |
-| **Memory Usage** | 50MB+ (full tree) | ~10MB (indexed) | 5x less |
-| **File Changes** | Manual regeneration | Automatic detection | Real-time |
-| **Concurrent Requests** | 100+ connections | 500+ connections | 5x better |
-| **Monitoring** | None | Real-time analytics | Full observability |
-
-### Extension Handling Performance
-- **Extension Chain Analysis**: <1ms for 725 extensions
-- **Depth Limit Enforcement**: Zero overhead (pre-indexed)
-- **Cache Hit Rate**: >95% for typical API usage patterns
-- **Memory per Request**: ~2MB vs 50MB+ for full tree loading
-
-## ✅ Phase 3 - Client Integration (Completed)
-
-### Completed Integration Features
-
-#### Enhanced API Endpoints (v0.3.0)
-- **Parser Configuration**: `GET/POST /config/parser` for dynamic parser settings
-- **Bulk Validation**: `POST /validate/bulk` for efficient multi-field validation
-- **HPXML Serialization**: Round-trip form editing with XML fragment support
-- **Enhanced Caching**: Sub-5ms response times with intelligent cache invalidation
-
-#### HPXML Serialization Utilities (NEW)
-**Complete round-trip form editing support:**
-- **HPXMLSerializer**: Convert between XML and form fragments
-- **HPXMLFragment**: Structured data for form editing with validation
-- **HPXMLFormBuilder**: JSON schema generation with extension metadata
-- **Field Dependencies**: Automatic detection of conditional form logic
-
-**Key Features:**
-```python
-from h2k_hpxml.schema_api.serialization import HPXMLSerializer, HPXMLFragment
-
-# Create serializer with rule validation
-serializer = HPXMLSerializer(rule_node)
-
-# Create editable fragment
-fragment = serializer.create_fragment("/HPXML/Building/BuildingDetails")
-
-# Validate form data
-validation_errors = serializer.validate_fragment(fragment)
-
-# Convert to/from XML for storage
-xml_element = serializer.fragment_to_xml(fragment)
-restored_fragment = serializer.xml_to_fragment(xml_element, "/HPXML/Building")
-
-# Generate form schema with extension handling
-form_builder = HPXMLFormBuilder(rule_node)
-form_schema = form_builder.build_form_schema(max_depth=3)
-```
-
-#### Enhanced UI Client
-**Extension Metadata Handling:**
-- **Visual Indicators**: ⚠️ for truncated inheritance, 🔌 for extension points
-- **Progressive Disclosure**: Depth-aware tree loading for performance
-- **Form Generation**: JSON schema with extension warnings and custom field support
-- **Bulk Operations**: Multi-field validation and configuration management
-
-**Updated API Usage:**
 ```bash
-# API Base URL
-http://localhost:8000
+# Install from PyPI
+pip install hpxml-schema-api
 
-# Start enhanced server
-python -m h2k_hpxml.schema_api.run_server
+# Or install with uv
+uv add hpxml-schema-api
 
-# API docs with serialization endpoints
-http://localhost:8000/docs
-
-# Enhanced client with extension support
-python examples/api_client.py
+# Or clone and install locally
+git clone https://github.com/canmet-energy/hpxml-schema-api.git
+cd hpxml-schema-api
+pip install -e .
 ```
 
-#### For Backend Integration
-**Environment Variables:**
+### Running the Server
+
 ```bash
-# Optional: Force use of cached parser (default)
-HPXML_PARSER_MODE=cached
+# Start the API server
+hpxml-schema-api
 
-# Optional: Custom parser configuration
-HPXML_PARSER_CONFIG="max_extension_depth=5,max_recursion_depth=15"
+# Or run with uvicorn directly
+uvicorn hpxml_schema_api.app:app --host 0.0.0.0 --port 8000
 
-# Optional: Cache TTL in seconds (default: 3600)
-HPXML_CACHE_TTL=7200
-
-# Note: JSON snapshots are no longer supported as of v0.3.0
-# Parser mode always uses cached parsing
+# Server will be available at http://localhost:8000
+# API documentation at http://localhost:8000/docs
 ```
 
-**Code Integration:**
-```python
-from h2k_hpxml.schema_api.cache import get_cached_parser
-from h2k_hpxml.schema_api.xsd_parser import ParserConfig
+### Model Context Protocol (MCP) Support
 
-# Use enhanced parser with configuration
-config = ParserConfig(max_extension_depth=5, track_extension_metadata=True)
-parser = get_cached_parser(parser_config=config)
+The HPXML Schema API includes full Model Context Protocol support, making it accessible to LLMs like Claude for AI-assisted development workflows.
 
-# Parse with caching
-result = parser.parse_xsd(schema_path, "HPXML")
-```
+#### Installing with MCP Support
 
-### Completed Integration Tasks ✅
-1. **UI Client Enhancement** ✅
-   - ✅ Handle extension metadata in form generation with visual indicators
-   - ✅ Implement depth-aware tree loading for performance
-   - ✅ Add visual indicators for truncated inheritance chains (⚠️🔌)
-   - ✅ Use ETags for efficient client-side caching
-
-2. **Advanced Form Generation** ✅
-   - ✅ Leverage extension point metadata for custom field support
-   - ✅ Implement progressive disclosure based on depth limits
-   - ✅ Add inheritance chain visualization for complex types
-   - ✅ Generate JSON schemas with extension warnings
-
-3. **Performance Optimization** ✅
-   - ✅ Use `depth` parameter to limit API response size
-   - ✅ Implement client-side caching with ETags
-   - ✅ Batch field validation requests with bulk endpoint
-
-4. **Serialization & Round-trip Editing** ✅
-   - ✅ HPXML fragment creation and validation
-   - ✅ XML to form data conversion and back
-   - ✅ Field dependency detection for conditional forms
-   - ✅ Form schema generation with extension handling
-
-## 🔄 Migration Strategy
-
-### Hybrid Approach (Current)
-Both approaches are supported for smooth migration:
-
-1. **Default**: Enhanced cached parser with dynamic loading
-2. **Removed**: JSON snapshots support removed as of v0.3.0
-3. **Simplified**: Single mode operation using cached parser only
-
-### Development History
-All migration phases have been completed successfully:
-- ✅ Enhanced parser implementation
-- ✅ API client updates and new features
-- ✅ Default cached parser with snapshot backup
-- ✅ Complete JSON snapshot functionality removal
-
-### Backward Compatibility Guarantees
-- All existing API endpoints work unchanged
-- Response format unchanged (only internal implementation simplified)
-- Environment variable configuration maintained
-- Response schemas remain compatible (with additions)
-- **Test suite must pass at 100% after each phase** to ensure no regressions
-
-## 📚 Configuration Reference
-
-### Parser Configuration
-```python
-@dataclass
-class ParserConfig:
-    max_extension_depth: int = 3      # Inheritance chain limit
-    max_recursion_depth: int = 10     # Overall recursion limit
-    track_extension_metadata: bool = True  # Extension chain indexing
-    resolve_extension_refs: bool = False   # Resolve extension elements
-    cache_resolved_refs: bool = True       # Cache resolved references
-```
-
-### Cache Configuration
-```python
-cache = SchemaCache(
-    default_ttl=3600,  # 1 hour cache TTL
-)
-
-# Environment variables
-HPXML_CACHE_TTL=7200        # Cache TTL in seconds
-HPXML_PARSER_MODE=cached    # Parser mode (always cached as of v0.3.0)
-```
-
-### API Query Parameters
-| Parameter | Endpoint | Description | Default |
-|-----------|----------|-------------|---------|
-| `depth` | `/tree` | Limit tree traversal depth | None |
-| `kind` | `/search` | Filter by node kind | None |
-| `limit` | `/search` | Maximum results | 100 |
-| `section` | `/tree`, `/fields` | Starting xpath | None |
-
-## ✅ Test Validation Requirements
-
-### Phase Implementation Testing
-**CRITICAL**: After implementing each phase, ALL tests must pass to ensure system integrity and backward compatibility.
-
-**Test Validation Protocol:**
 ```bash
-# Run complete test suite after any phase implementation
-pytest tests/schema_api/ -v
+# Install with MCP dependencies
+pip install hpxml-schema-api[mcp]
 
-# Expected result: 52+ tests passing, 0 failures
-# Any test failures indicate implementation issues that MUST be resolved
+# Or with uv
+uv add hpxml-schema-api --extra mcp
 ```
 
-**Phase-by-Phase Test Requirements:**
-- **Phase 1**: Extension handling tests (10) + existing tests must all pass
-- **Phase 2**: Cache tests (12) + extension tests (10) + existing tests must all pass
-- **Phase 3**: All 52+ tests including serialization and API integration must pass
+#### Running the MCP Server
 
-**Quality Gates:**
-- ❌ **Do NOT merge** if any tests are failing
-- ❌ **Do NOT deploy** without full test suite validation
-- ✅ **Only proceed** when all tests pass consistently
-
-**Debugging Failed Tests:**
 ```bash
-# Run specific test categories
-pytest tests/schema_api/test_cache.py -v          # Cache functionality
-pytest tests/schema_api/test_xsd_parser_extensions.py -v  # Extension handling
-pytest tests/schema_api/test_app.py -v            # API endpoints
+# Start standalone MCP server (stdio transport)
+hpxml-mcp-server
 
-# Run with detailed output for debugging
-pytest tests/schema_api/ -v --tb=long
+# Start MCP server with HTTP transport
+MCP_TRANSPORT=http MCP_PORT=8001 hpxml-mcp-server
 
-# Check imports and basic functionality
-python -c "from h2k_hpxml.schema_api.serialization import HPXMLSerializer; print('✅ OK')"
+# Start with authentication
+MCP_AUTH_TOKEN=your-token MCP_REQUIRE_AUTH=true hpxml-mcp-server
 ```
 
-## 🛠️ Troubleshooting
+#### Claude Desktop Integration
 
-### Common Issues
+1. **Install the HPXML Schema API with MCP support:**
+   ```bash
+   pip install hpxml-schema-api[mcp]
+   ```
 
-**Extension Chain Truncation**
-```json
+2. **Add to Claude Desktop configuration** (`~/.claude/claude_desktop_config.json`):
+   ```json
+   {
+     "mcpServers": {
+       "hpxml-schema": {
+         "command": "hpxml-mcp-server",
+         "env": {
+           "HPXML_SCHEMA_PATH": "/path/to/HPXML.xsd"
+         }
+       }
+     }
+   }
+   ```
+
+3. **Restart Claude Desktop** and the HPXML Schema API will be available as an MCP server.
+
+#### Claude Code Integration
+
+**✅ Fully Tested and Ready for Use**
+
+1. **Install the HPXML Schema API:**
+   ```bash
+   pip install hpxml-schema-api[mcp]
+```
+### Enhanced / Bulk / Document Validation (Experimental)
+
+Versioned endpoints under `/vX.Y/validate/*` expose extended validation modes (enhanced field, bulk, document). These are experimental, subject to change, and not yet part of the stability contract. Use only if you are prepared to adapt to breaking changes.
+   ```
+
+2. **Add MCP server to Claude Code:**
+Core unversioned endpoints target a single cached schema (default 4.0). Versioned routes (`/v4.0/...`, `/v4.1/...`) are available when multiple schemas are present; detection falls back to 4.0 if 4.1 is not found. A discovery endpoint `/versions` now lists all known versions plus their endpoint templates. An alias `latest` maps to the newest available version (e.g. `/vlatest/metadata`).
+   # Quick setup (uses HPXML v4.0 default, auto-downloads schema)
+   claude mcp add hpxml-schema-api --command hpxml-mcp-server
+   ```
+
+   **Advanced Configuration:**
+   ```bash
+   # Use HPXML v4.1 instead of default v4.0
+   claude mcp add hpxml-schema-api --command hpxml-mcp-server --env HPXML_SCHEMA_VERSION=4.1
+
+   # Use specific schema file path
+   claude mcp add hpxml-schema-api --command hpxml-mcp-server --env HPXML_SCHEMA_PATH=/path/to/HPXML.xsd
+
+   # Enable debug logging
+   claude mcp add hpxml-schema-api --command hpxml-mcp-server --env MCP_LOG_LEVEL=DEBUG
+   ```
+
+   **What happens automatically:**
+   - 📥 Downloads HPXML schema from official repository if needed
+   - 💾 Caches schema locally for offline use
+   - 🔄 Supports both HPXML v4.0 and v4.1 simultaneously
+   - 🚀 Ready to use immediately after installation
+
+### GraphQL Interface (Placeholder)
+       "servers": {
+         "hpxml-schema": {
+           "command": "hpxml-mcp-server",
+           "args": ["--transport", "stdio"],
+           "env": {
+             "HPXML_SCHEMA_PATH": "~/.local/share/OpenStudio-HPXML-v1.9.1/HPXMLtoOpenStudio/resources/hpxml_schema/HPXML.xsd",
+             "MCP_LOG_LEVEL": "INFO"
+           }
+         }
+       }
+     }
+   }
+   ```
+
+3. **Use in Claude Code:**
+   ```
+   # Schema exploration
+   "What HPXML schema version are we using and what's available?"
+   "Show me the structure of the HPXML Building section"
+   "What fields are required for HPXML BuildingDetails?"
+
+   # Field validation
+   "Validate this BuildingID: 'MyHouse123'"
+   "Check if these HPXML field values are valid: BuildingID=Test, Area=1500"
+
+   # Development assistance
+   "Generate a Python function to validate HPXML Building data"
+   "Create a JSON schema for HPXML validation"
+   "Help me understand HPXML field requirements"
+   ```
+
+  **Available MCP Resources (7):**
+  (All standard resources use the `schema://` URI scheme; versions catalog uses a distinct scheme.)
+  - 📋 `schema://metadata` - Schema version and statistics
+  - 🌳 `schema://tree` - Hierarchical schema structure
+  - 📝 `schema://fields` - Field-level details and types
+  - 🔍 `schema://search` - Search across schema elements
+  - ❤️ `schema://health` - Server health status
+  - 📊 `schema://performance_metrics` - Performance analytics
+  - 💾 `schema://cache_metrics` - Cache statistics
+
+   **Available MCP Tools (3):**
+   - ✅ `validate_field` - Validate individual field values
+   - 📦 `validate_bulk` - Batch validation for multiple fields
+   - 🔄 `reset_metrics` - Reset performance metrics
+
+#### Testing and Verification
+
+The MCP integration has been **fully tested** with Claude Code:
+
+**✅ Verified Functionality:**
+- Schema discovery and metadata retrieval
+- Field validation and bulk validation
+- Version switching (v4.0 ↔ v4.1)
+- Automatic schema downloading
+- Resource and tool enumeration
+
+**🔧 Troubleshooting:**
+```bash
+# Check if MCP server is working
+hpxml-schema list                    # Should show available versions
+hpxml-mcp-server --help             # Should show MCP server options
+
+# Test MCP server manually
+echo '{"method": "ping", "params": {}}' | hpxml-mcp-server
+
+# Clear schema cache if issues
+hpxml-schema clear
+hpxml-schema download --version 4.0  # Re-download default schema
+```
+
+## 🔭 Roadmap ( abridged )
+- Wire GraphQL resolvers to real parser data
+- Stabilize enhanced/bulk/document validation contracts
+- Add version usage metrics & deprecation flags
+- Prometheus metrics exporter (optional)
+- Pagination & filtering improvements for search
+- Async Redis backend (if concurrency demands)
+- Document MCP versions resource
+### Schema Management
+
+The API supports both **HPXML v4.0** (default) and **v4.1**, automatically discovering and downloading schemas as needed:
+
+### Schema Artifact Export (OpenAPI & GraphQL)
+
+You can export static API artifacts for integration, documentation sites, or client SDK generation.
+
+```bash
+python scripts/export_schemas.py --out-dir build/schemas
+ls build/schemas
+# openapi.json  graphql_schema.graphql
+```
+
+Typical uses:
+* Commit `openapi.json` for diffing in PRs
+* Feed `graphql_schema.graphql` into client codegen tools
+* Publish both to an internal developer portal
+
+CI suggestion (GitHub Actions step):
+```bash
+python scripts/export_schemas.py --out-dir build/schemas
+git diff --exit-code build/schemas/openapi.json
+```
+
+If you only need one artifact:
+```bash
+python -c "from hpxml_schema_api.app import app, json; import json,sys; print(json.dumps(app.openapi(),indent=2))" > openapi.json
+python -c "from hpxml_schema_api.graphql_schema import schema; print(schema.as_str())" > graphql_schema.graphql
+```
+
+The export script has no side effects beyond file creation and does not require a running server.
+
+```bash
+# Auto-discover or download default schema (v4.0)
+hpxml-schema discover
+
+# List available schema versions (shows cached status)
+hpxml-schema list
+
+# Download specific version
+hpxml-schema download --version 4.0  # Default version
+hpxml-schema download --version 4.1  # Latest version
+
+# Clear cached schemas
+hpxml-schema clear
+```
+
+**Supported Versions:**
+- **v4.0** - Default version, stable and widely used
+- **v4.1** - Latest version with newest features
+- **latest** - Development version from master branch
+
+### Your First Requests
+
+```bash
+# Check API health
+curl http://localhost:8000/health
+
+# Get schema metadata
+curl http://localhost:8000/metadata
+
+# Explore schema tree structure
+curl http://localhost:8000/tree?depth=2
+
+# Search for specific fields
+curl http://localhost:8000/search?q=Building&limit=5
+
+# Validate a field value
+curl -X POST http://localhost:8000/validate \
+  -H "Content-Type: application/json" \
+  -d '{"xpath": "/HPXML/Building/BuildingID", "value": "MyBuilding123"}'
+```
+
+## 📖 API Documentation
+
+For a full, parameter-by-parameter reference (endpoints, headers, error shapes, caching semantics, and GraphQL fields) see: **[Detailed API Reference](./docs/API_REFERENCE.md)**.
+
+The table below is a quick navigation aid—consult the reference for authoritative details and stability notes.
+
+### Core Endpoints
+
+| Endpoint | Method | Description | Example |
+|----------|--------|-------------|---------|
+| `/health` | GET | API health check | `curl /health` |
+| `/metadata` | GET | Schema metadata and statistics | `curl /metadata` |
+| `/tree` | GET | Hierarchical schema structure | `curl /tree?depth=3` |
+| `/fields` | GET | Field-level details | `curl /fields?section=Building` |
+| `/search` | GET | Search schema elements | `curl /search?q=heating&kind=field` |
+| `/validate` | POST | Basic field validation | See examples below |
+
+### Enhanced Validation
+
+Enhanced validation provides business rule checking beyond basic schema validation:
+
+```bash
+# Enhanced single field validation with custom rules
+curl -X POST http://localhost:8000/v4.0/validate/enhanced \
+  -H "Content-Type: application/json" \
+  -d '{
+    "field_path": "/HPXML/Building/BuildingDetails/BuildingSummary/BuildingConstruction/ConditionedFloorArea",
+    "value": "1500",
+    "custom_rules": [
+      {"type": "numeric_range", "min": 500, "max": 10000}
+    ]
+  }'
+
+# Bulk validation with cross-field checks
+curl -X POST http://localhost:8000/v4.0/validate/bulk \
+  -H "Content-Type: application/json" \
+  -d '{
+    "field_values": {
+      "/HPXML/Building/BuildingDetails/BuildingSummary/BuildingConstruction/ConditionedFloorArea": "1500",
+      "/HPXML/Building/BuildingDetails/Systems/HVAC/HVACPlant/HeatingSystem/HeatingSystemType": "Furnace"
+    }
+  }'
+
+# Complete document validation
+curl -X POST http://localhost:8000/v4.0/validate/document \
+  -H "Content-Type: application/json" \
+  -d '{
+    "document_data": {
+      "/HPXML/Building/BuildingID": "MyBuilding123",
+      "/HPXML/Building/BuildingDetails/BuildingSummary/BuildingConstruction/ConditionedFloorArea": "1500"
+    },
+    "strict_mode": true
+  }'
+```
+
+### Version Support
+
+The API supports multiple HPXML schema versions simultaneously:
+
+```bash
+# List available versions
+curl http://localhost:8000/versions
+
+# Use latest alias
+curl http://localhost:8000/vlatest/metadata
+
+# Default endpoints (use v4.0)
+curl http://localhost:8000/metadata
+curl http://localhost:8000/validate
+
+# Version-specific endpoints
+curl http://localhost:8000/v4.0/metadata    # Explicit v4.0
+curl http://localhost:8000/v4.1/metadata    # Latest v4.1
+curl http://localhost:8000/v4.0/search?q=Building
+curl http://localhost:8000/v4.1/search?q=Building
+
+# Enhanced validation for specific versions
+curl -X POST http://localhost:8000/v4.0/validate/enhanced \
+  -d '{"field_path": "/HPXML/Building/BuildingID", "value": "MyBuilding"}'
+curl -X POST http://localhost:8000/v4.1/validate/enhanced \
+  -d '{"field_path": "/HPXML/Building/Area", "value": "1200"}'
+```
+
+**Version Selection:**
+- **Unversioned endpoints** (`/metadata`, `/validate`) use **v4.0** by default
+- **Versioned endpoints** (`/v4.0/`, `/v4.1/`, `/vlatest/`) use the specified or aliased version
+- **Alias** `latest` resolves dynamically to the highest semantic version
+- **MCP server** can be configured for specific versions via environment variables
+
+### GraphQL Interface
+
+Interactive GraphQL endpoint with GraphiQL interface:
+
+```bash
+# GraphQL endpoint
+curl -X POST http://localhost:8000/graphql \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "{ metadata { version totalNodes totalFields } }"
+  }'
+
+# Access GraphiQL interface at http://localhost:8000/graphql
+```
+
+Example GraphQL queries:
+
+```graphql
+# Get schema metadata
 {
-  "notes": ["extension_chain_truncated", "inherits_from_5_types"],
-  "description": "Complex type with 5-level inheritance (truncated at depth 3)"
+  metadata {
+    version
+    rootName
+    totalNodes
+    totalFields
+  }
+}
+
+# Search for fields
+{
+  search(query: "Building", limit: 5) {
+    results {
+      xpath
+      name
+      kind
+      dataType
+    }
+  }
+}
+
+# Get tree structure with limited depth
+{
+  tree(depth: 2) {
+    xpath
+    name
+    children {
+      xpath
+      name
+      kind
+    }
+  }
 }
 ```
-- **Solution**: Increase `max_extension_depth` in parser config
-- **UI Hint**: Show inheritance indicator with tooltip
 
-**Performance Issues**
-- **Symptom**: Slow tree loading (>100ms)
-- **Solution**: Use `depth` parameter to limit response size
-- **Example**: `GET /tree?section=/HPXML/Building&depth=2`
+### MCP Resources
 
-**Cache Misses**
-- **Symptom**: Consistent parsing times (no speedup)
-- **Check**: File modification timestamps
-- **Solution**: Verify cache TTL and file permissions
+When running with MCP support (`pip install hpxml-schema-api[mcp]`), the following resources are exposed to AI tooling:
 
-**Memory Usage**
-- **Symptom**: High memory consumption
-- **Solution**: Tune cache TTL or use distributed cache
-- **Monitoring**: Track cache hit/miss ratios
+| Resource URI | Purpose |
+|--------------|---------|
+| `schema://metadata` | Current schema version metadata (unversioned view) |
+| `schema://tree` | Hierarchical schema structure (depth‑limited traversal) |
+| `schema://fields` | Flat list of field nodes |
+| `schema://search` | Search results for a query term |
+| `schema://performance_metrics` | Recent performance stats |
+| `schema://cache_metrics` | Cache usage statistics |
+| `schema://health` | Health/status snapshot |
+| `mcp://schema_versions` | Full version catalog with endpoint templates (includes `latest` alias resolution) |
 
-### Debug Information
-```python
-# Enable debug logging
-import logging
-logging.getLogger('h2k_hpxml.schema_api').setLevel(logging.DEBUG)
+You can retrieve the version catalog programmatically via MCP by reading `mcp://schema_versions` or through HTTP at `/versions`.
 
-# Check cache statistics
-cache = get_cached_parser().cache
-print(f"Cache entries: {len(cache._cache)}")
+> MCP URI Conventions: `schema://*` resources map to internal schema exploration capabilities (metadata, tree, fields, search, metrics, health). These are not HTTP URLs; clients invoke them via the MCP `read_resource` method. The special `mcp://schema_versions` resource returns the aggregated version discovery payload equivalent to the REST `/versions` endpoint. All other functionality mirrors the REST interface but is optimized for AI tooling consumption.
+
+## 🔧 Configuration
+
+### Environment Variables
+
+```bash
+# Cache configuration
+export HPXML_CACHE_TTL=3600              # Cache TTL in seconds (default: 3600)
+export HPXML_CACHE_TYPE=distributed     # Cache type: local or distributed
+
+# Redis configuration (for distributed cache)
+export HPXML_REDIS_URL=redis://localhost:6379/0
+export HPXML_REDIS_PREFIX=hpxml:
+
+# Schema configuration
+export HPXML_SCHEMA_DIR=/path/to/schemas # Directory with versioned schemas
+export HPXML_SCHEMA_PATH=/path/to/HPXML.xsd  # Single schema file path
+
+# Server configuration
+export HPXML_HOST=0.0.0.0
+export HPXML_PORT=8000
 ```
 
-## 📁 Key Files (Updated)
+### Parser Configuration
 
-### Core Implementation
-- `src/h2k_hpxml/schema_api/xsd_parser.py` - Enhanced XSD parser with extension handling
-- `src/h2k_hpxml/schema_api/cache.py` - Dynamic caching system with performance monitoring
-- `src/h2k_hpxml/schema_api/app.py` - FastAPI application with monitoring and enhanced endpoints
-- `src/h2k_hpxml/schema_api/models.py` - Data models with extension metadata
-- `src/h2k_hpxml/schema_api/serialization.py` - HPXML serialization for round-trip editing
-- `src/h2k_hpxml/schema_api/monitoring.py` - Performance monitoring and analytics system
+```python
+from hpxml_schema_api.xsd_parser import ParserConfig
+from hpxml_schema_api.cache import get_cached_parser
 
-### Legacy Support (Deprecated)
-- ~~`src/h2k_hpxml/schema_api/snapshot.py`~~ - JSON snapshot generation (removed in v0.3.0)
-- `src/h2k_hpxml/schema_api/merger.py` - Rule merging utilities
+# Create custom parser configuration
+config = ParserConfig(
+    max_extension_depth=5,          # Inheritance chain limit
+    max_recursion_depth=15,         # Overall recursion limit
+    track_extension_metadata=True,  # Extension chain indexing
+    resolve_extension_refs=False,   # Resolve extension elements
+    cache_resolved_refs=True        # Cache resolved references
+)
 
-### Testing
-- `tests/schema_api/test_xsd_parser_extensions.py` - Extension handling tests (10)
-- `tests/schema_api/test_cache.py` - Caching system tests (12)
-- `tests/schema_api/test_app.py` - API integration tests (19)
+# Use custom configuration
+parser = get_cached_parser(
+    parser_config_key="max_extension_depth=5,track_extension_metadata=true"
+)
+```
 
-### Documentation & Examples
-- `docs/api/API_REFERENCE.md` - Complete API documentation
-- `BETTER_EXTENSION_SOLUTION.md` - Technical deep dive on extension solution
-- `examples/api_client.py` - Enhanced Python client with extension metadata support
-- `api.md` - Implementation status and integration guide
+### Distributed Caching
 
-## 📝 Updated Limitations
+For production deployments with multiple instances:
 
-1. **Extension Depth**: Complex types with >10 inheritance levels may be truncated (configurable)
-2. **Cache Scope**: Per-instance caching (distributed cache planned for Phase 4)
-3. **Schema Versions**: Currently supports HPXML 4.0; newer versions require testing
-4. **Complex Validation**: Advanced Schematron business rules limited (basic validation only)
+```python
+from hpxml_schema_api.cache import DistributedCache, CachedSchemaParser
 
-## ✅ Phase 4 - Advanced Features (Partially Complete)
+# Configure distributed cache
+cache = DistributedCache(
+    default_ttl=7200,
+    redis_url="redis://localhost:6379/0",
+    redis_prefix="myapp:",
+    enable_monitoring=True
+)
 
-### Completed Features
+parser = CachedSchemaParser(cache=cache)
+```
 
-#### Performance Monitoring & Analytics (v0.3.0)
-- **Comprehensive Metrics**: Cache hit rates, response times, endpoint usage analytics
-- **Real-time Monitoring**: `/metrics/performance`, `/metrics/cache`, `/metrics/system` endpoints
-- **Health Analytics**: Enhanced health checks with performance indicators and recommendations
-- **Request Tracking**: Middleware-based monitoring with usage patterns and error tracking
-- **Memory Optimization**: Cache memory usage estimation and optimization recommendations
+## 🎯 Use Cases
 
-**New Monitoring Endpoints:**
+### Dynamic Form Generation
+
+```python
+import requests
+
+# Get schema tree for form generation
+response = requests.get("http://localhost:8000/tree", params={"depth": 3})
+schema_tree = response.json()
+
+# Get field details for specific section
+response = requests.get("http://localhost:8000/fields",
+                       params={"section": "Building"})
+fields = response.json()
+
+# Generate form fields from schema
+for field in fields:
+    if field["kind"] == "field":
+        form_field = {
+            "name": field["name"],
+            "type": field["dataType"],
+            "required": field.get("minOccurs", 0) > 0,
+            "options": field.get("enumValues", []),
+            "validation": field.get("validations", [])
+        }
+```
+
+### Document Validation
+
+```python
+import requests
+
+# Validate complete HPXML document
+document_data = {
+    "/HPXML/Building/BuildingID": "MyBuilding123",
+    "/HPXML/Building/BuildingDetails/BuildingSummary/BuildingConstruction/ConditionedFloorArea": "1500",
+    "/HPXML/Building/BuildingDetails/Systems/HVAC/HVACPlant/HeatingSystem/HeatingSystemType": "Furnace"
+}
+
+response = requests.post(
+    "http://localhost:8000/v4.0/validate/document",
+    json={
+        "document_data": document_data,
+        "strict_mode": True,
+        "custom_rules": [
+            {"type": "numeric_range", "min": 500, "max": 10000}
+        ]
+    }
+)
+
+validation_result = response.json()
+if not validation_result["overall_valid"]:
+    for result in validation_result["results"]:
+        if result["errors"]:
+            print(f"Field {result['field_path']}: {result['errors']}")
+```
+
+### Schema Exploration
+
+```python
+import requests
+
+# Search for specific schema elements
+response = requests.get("http://localhost:8000/search",
+                       params={"q": "heating", "kind": "field", "limit": 10})
+heating_fields = response.json()
+
+# Get metadata about schema
+response = requests.get("http://localhost:8000/metadata")
+metadata = response.json()
+print(f"Schema version: {metadata['version']}")
+print(f"Total fields: {metadata['totalFields']}")
+
+# Navigate schema hierarchy
+response = requests.get("http://localhost:8000/tree",
+                       params={"section": "Building", "depth": 2})
+building_tree = response.json()
+```
+
+## 📊 Performance & Monitoring
+
+### Performance Metrics
+
 ```bash
-# Get comprehensive performance metrics
+# Get performance metrics
 curl http://localhost:8000/metrics/performance
 
-# Get cache analytics with recommendations
+# Get cache statistics
 curl http://localhost:8000/metrics/cache
 
-# Get system metrics (CPU, memory, uptime)
+# Get system metrics
 curl http://localhost:8000/metrics/system
 
-# Enhanced health check with performance indicators
+# Enhanced health check
 curl http://localhost:8000/metrics/health
 
 # Reset metrics (useful for testing)
 curl -X POST http://localhost:8000/metrics/reset
 ```
 
-#### JSON Snapshot Removal (v0.3.0)
-- **Complete Removal**: All JSON snapshot functionality eliminated from codebase
-- **Simplified Architecture**: Parser-only design for better maintainability
-- **Backward Compatibility**: API responses unchanged, only internal implementation simplified
-- **Performance Benefits**: Cached parser provides optimal performance without snapshot overhead
+### Performance Characteristics
 
-## 🗺️ Roadmap
+| Operation | Response Time | Caching |
+|-----------|---------------|---------|
+| Schema tree (cached) | <5ms | ✅ TTL-based |
+| Field search | <20ms | ✅ Query cache |
+| Validation | <10ms | ✅ Rule cache |
+| GraphQL queries | <50ms | ✅ Schema cache |
 
-### Distributed Architecture
-- **Redis/Memcached Integration**: Distributed caching for multi-instance deployments
-- **GraphQL Support**: Flexible schema queries with advanced filtering capabilities
-- **WebSocket Notifications**: Real-time schema update notifications for connected clients
+## 🐳 Docker Deployment
 
-### Advanced Features
-- **Schema Diffing Tools**: Automated migration utilities for schema version updates
-- **Multi-tenancy Support**: Organization-specific rule sets and customizations
-- **API Versioning**: Support for multiple HPXML schema versions simultaneously
-- **Enhanced Validation**: Complex business rule validation beyond basic schema checks
+### Basic Docker Setup
 
-## 🚀 Quick Start
+```dockerfile
+FROM python:3.11-slim
 
-### Installation
-```bash
-# Install from PyPI (when published)
-pip install hpxml-schema-api
+WORKDIR /app
+COPY . .
+RUN pip install -e .
 
-# Or install from source
-git clone https://github.com/canmet-energy/hpxml-schema-api.git
-cd hpxml-schema-api
-pip install -e .
+EXPOSE 8000
+CMD ["hpxml-schema-api"]
 ```
 
-### Basic Usage
-```bash
-# Start the API server
-python -m hpxml_schema_api.run_server
-# Server will be available at http://localhost:8000
+### Docker Compose with Redis
 
-# View API documentation
-open http://localhost:8000/docs
+```yaml
+version: '3.8'
+services:
+  hpxml-api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - HPXML_CACHE_TYPE=distributed
+      - HPXML_REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - redis
 
-# Test basic functionality
-curl "http://localhost:8000/health"
-curl "http://localhost:8000/tree?depth=2"
-curl "http://localhost:8000/search?query=wall&kind=field"
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
 ```
 
-### API Examples
+### Environment Configuration
+
 ```bash
-# Schema exploration
-curl "http://localhost:8000/tree"
-curl "http://localhost:8000/fields?section=/HPXML/Building"
-
-# Validation
-curl -X POST "http://localhost:8000/validate" \
-  -H "Content-Type: application/json" \
-  -d '{"xpath": "/HPXML/Building/BuildingDetails/BuildingSummary/YearBuilt", "value": "2024"}'
-
-# Performance monitoring
-curl "http://localhost:8000/metrics/performance"
-curl "http://localhost:8000/metrics/cache"
+# Production deployment
+docker run -d \
+  -p 8000:8000 \
+  -e HPXML_CACHE_TYPE=distributed \
+  -e HPXML_REDIS_URL=redis://your-redis:6379/0 \
+  -e HPXML_CACHE_TTL=7200 \
+  -v /path/to/schemas:/schemas \
+  -e HPXML_SCHEMA_DIR=/schemas \
+  hpxml-schema-api
 ```
+
+## 🔍 Troubleshooting
+
+### Common Issues
+
+**Schema not found:**
+```bash
+# Check schema path configuration
+curl http://localhost:8000/health
+# Look for schema_path in response
+
+# Set schema path explicitly
+export HPXML_SCHEMA_PATH=/path/to/HPXML.xsd
+```
+
+**Cache issues:**
+```bash
+# Check cache status
+curl http://localhost:8000/metrics/cache
+
+# Clear cache by restarting or using distributed cache reset
+curl -X POST http://localhost:8000/metrics/reset
+```
+
+**Performance issues:**
+```bash
+# Check performance metrics
+curl http://localhost:8000/metrics/performance
+
+# Reduce query depth
+curl "http://localhost:8000/tree?depth=2"  # Instead of default unlimited depth
+```
+
+### Logging
+
+```bash
+# Enable debug logging
+export LOG_LEVEL=DEBUG
+hpxml-schema-api
+
+# Check logs for errors
+tail -f /var/log/hpxml-schema-api.log
+```
+
+## 📚 Additional Resources
+
+- **API Reference**: http://localhost:8000/docs (Interactive Swagger UI)
+- **GraphQL Playground**: http://localhost:8000/graphql
+- **Python Client Examples**: [examples/](./examples/)
+- **HPXML Standard**: [Official HPXML Documentation](https://hpxml.nrel.gov/)
 
 ### Development
+
 ```bash
+# Install development dependencies
+pip install -e ".[dev]"
+
 # Run tests
 pytest tests/ -v
 
-# Run with development dependencies
-pip install -e ".[dev]"
+# Code formatting
+black src/ tests/
+ruff check src/ tests/
+
+# Type checking
+mypy src/
 ```
 
-## 📧 Support & Contributing
+## 🤝 Contributing
 
-### Getting Help
-- **GitHub Issues**: [Report bugs or request features](https://github.com/canmet-energy/hpxml-schema-api/issues)
-- **API Documentation**: http://localhost:8000/docs (when server is running)
-- **HPXML Standard**: [Official HPXML Documentation](https://hpxml-guide.readthedocs.io/)
+We welcome contributions! Please:
 
-### Contributing
-We welcome contributions! Please see our contributing guidelines and:
-- Follow the existing code style and patterns
-- Add tests for new functionality
-- Update documentation as needed
-- Ensure all tests pass before submitting PRs
+1. **Fork the repository** and create a feature branch
+2. **Add tests** for new functionality (maintain >90% coverage)
+3. **Update documentation** as needed
+4. **Follow code style** (black + ruff)
+5. **Submit a pull request** with clear description
+
+### Testing
+
+```bash
+# Run all tests
+pytest tests/ -v
+
+# Run specific test categories
+pytest tests/schema_api/ -v           # Core API tests
+pytest tests/test_enhanced_validation.py -v  # Enhanced validation tests
+pytest tests/test_version_manager.py -v      # Version management tests
+
+# Check test coverage
+pytest --cov=hpxml_schema_api tests/
+```
+
+## 📄 License
+
+This project is licensed under the GPL-3.0-or-later License - see the [LICENSE](LICENSE) file for details.
+
+## 📧 Support
+
+- **Issues**: [GitHub Issues](https://github.com/canmet-energy/hpxml-schema-api/issues)
+- **Documentation**: [API Documentation](http://localhost:8000/docs)
+- **Email**: canmet-energy@nrcan-rncan.gc.ca
+
+---

@@ -1,4 +1,47 @@
-"""Utilities to parse HPXML XSD definitions into normalized metadata."""
+"""Utilities to parse HPXML XSD definitions into normalized metadata.
+
+This module converts HPXML XML Schema (XSD) definitions into a normalized
+`RuleNode` tree used throughout the API (REST, GraphQL, MCP). It attempts to
+capture element/field structure, occurrence constraints, simple type
+enumerations, inheritance (extension) chains, and choice groups while guarding
+against runaway recursion or excessively deep extension hierarchies.
+
+Design goals:
+* Be resilient to large/complex HPXML schemas (depth and extension limits)
+* Preserve enough semantic information for UI generation & validation
+* Annotate nodes with helpful metadata (e.g., extension points, truncated chains)
+
+Extension handling strategy:
+The parser tracks inheritance chains for complex types. When a chain exceeds
+`ParserConfig.max_extension_depth`, it marks the node with
+``extension_chain_truncated`` instead of expanding further to prevent large
+trees. Choice containers are annotated by adding a `"choice"` note to each
+child so that clients can group mutually exclusive options.
+
+Typical usage:
+        from pathlib import Path
+        from hpxml_schema_api.xsd_parser import parse_xsd, ParserConfig
+
+        # Basic parse
+        root = parse_xsd(Path("HPXML.xsd"))
+        print(root.name)              # HPXML
+        print(len(root.children))     # Top-level section count
+
+        # Advanced parse with limits
+        config = ParserConfig(max_extension_depth=2, max_recursion_depth=8)
+        root_limited = parse_xsd(Path("HPXML.xsd"), config=config)
+
+        # Walk fields
+        for node in root.iter_nodes():
+                if node.kind == "field":
+                        print(node.xpath, node.data_type, node.enum_values[:3])
+
+Notes:
+* The parser focuses on elements; attributes are currently ignored.
+* Inline simpleType enumerations are merged with base-type enumerations.
+* Reference resolution copies inline simple/complex type definitions from the
+    referenced element, respecting overriding min/max occurs on the reference.
+"""
 
 from __future__ import annotations
 
@@ -22,7 +65,22 @@ class SimpleType:
 
 @dataclass
 class ParserConfig:
-    """Configuration for XSD parsing behavior."""
+    """Configuration for XSD parsing behavior.
+
+    Args:
+        max_extension_depth: Maximum cumulative depth of inheritance (complex
+            type extension chain) allowed before truncation.
+        max_recursion_depth: Hard limit on overall descent depth to prevent
+            infinite or pathological recursion.
+        track_extension_metadata: When True, annotate nodes with inheritance
+            chain notes (e.g., ``extension_chain_truncated``) and base type info.
+        resolve_extension_refs: If True, references whose name is "extension"
+            are fully resolved; otherwise they become annotated extension
+            points.
+        cache_resolved_refs: Maintain an in‑memory cache of resolved reference
+            element XML blobs to reduce parsing overhead on large schemas.
+    """
+
     max_extension_depth: int = 3  # Maximum depth for type extensions
     max_recursion_depth: int = 10  # Maximum overall recursion depth
     track_extension_metadata: bool = True  # Include extension chain info
@@ -31,7 +89,26 @@ class ParserConfig:
 
 
 class XSDParser:
-    """Parse HPXML XSD files into a tree of :class:`RuleNode`."""
+    """Parse HPXML XSD files into a tree of :class:`RuleNode`.
+
+    This class performs a single-pass structural extraction of an HPXML XSD
+    while applying configuration limits. It does not attempt to implement the
+    full XML Schema specification—only the subset required by HPXML (elements,
+    simpleType restrictions, complexType sequence/choice/all, references, and
+    extensions).
+
+    Example:
+        from pathlib import Path
+        from hpxml_schema_api.xsd_parser import XSDParser, ParserConfig
+
+        parser = XSDParser(Path("HPXML.xsd"), config=ParserConfig(max_extension_depth=2))
+        root = parser.parse()
+        energy_use = next(
+            (n for n in root.iter_nodes() if n.name == "EnergyConsumptions"), None
+        )
+        if energy_use:
+            print("Found energy consumption section with", len(energy_use.children), "children")
+    """
 
     def __init__(self, xsd_path: Path, config: Optional[ParserConfig] = None) -> None:
         self.xsd_path = Path(xsd_path)
@@ -40,7 +117,10 @@ class XSDParser:
         self.root = self.tree.getroot()
         self.simple_types: Dict[str, SimpleType] = {}
         self.complex_types: Dict[str, ET.Element] = {}
-        self.reference_cache: Dict[str, str] = {} if self.config.cache_resolved_refs else None
+        # Cache for resolved element references (may be disabled by config)
+        self.reference_cache: Optional[Dict[str, str]] = (
+            {} if self.config.cache_resolved_refs else None
+        )
         self.extension_chains: Dict[str, List[str]] = {}  # Track inheritance chains
         self._index_simple_types()
         self._index_complex_types()
@@ -48,12 +128,27 @@ class XSDParser:
             self._index_extension_chains()
 
     def parse(self, root_name: str = "HPXML") -> RuleNode:
+        """Parse the schema and return the rule tree rooted at ``root_name``.
+
+        Args:
+            root_name: Name of the root element inside the XSD (defaults to "HPXML").
+
+        Returns:
+            The root :class:`RuleNode` representing the HPXML document tree.
+
+        Raises:
+            ValueError: If the requested root element cannot be located.
+        """
         element = self._find_element(root_name)
         if element is None:
             raise ValueError(f"Element '{root_name}' not found in {self.xsd_path}")
         return self._build_node(
-            element, parent_xpath="", visited=set(), ref_chain=set(),
-            depth=0, extension_depth=0
+            element,
+            parent_xpath="",
+            visited=set(),
+            ref_chain=set(),
+            depth=0,
+            extension_depth=0,
         )
 
     # ---------------- Internal helpers ---------------- #
@@ -72,8 +167,10 @@ class XSDParser:
                     for enum in restriction.findall(f"{XS_NS}enumeration")
                     if enum.get("value") is not None
                 ]
+            # Filter any None values defensively (should not occur but keeps typing strict)
+            clean_enums: List[str] = [e for e in enumerations if isinstance(e, str)]
             self.simple_types[name] = SimpleType(
-                name=name, base=_local_name(base), enumerations=enumerations
+                name=name, base=_local_name(base), enumerations=clean_enums
             )
 
     def _index_complex_types(self) -> None:
@@ -84,15 +181,25 @@ class XSDParser:
             self.complex_types[name] = node
 
     def _index_extension_chains(self) -> None:
-        """Build inheritance chains for complex types."""
+        """Build inheritance chains for complex types.
+
+        Populates :attr:`extension_chains` with lists of base type names for
+        each complex type so that later truncation logic can apply aggregate
+        depth limits.
+        """
         for type_name, type_elem in self.complex_types.items():
             chain = self._get_extension_chain(type_elem, type_name)
             if chain:
                 self.extension_chains[type_name] = chain
 
-    def _get_extension_chain(self, type_elem: ET.Element, type_name: str,
-                           visited: Optional[Set[str]] = None) -> List[str]:
-        """Get the inheritance chain for a complex type."""
+    def _get_extension_chain(
+        self, type_elem: ET.Element, type_name: str, visited: Optional[Set[str]] = None
+    ) -> List[str]:
+        """Return the inheritance chain for a complex type.
+
+        Recursively walks ``complexContent/extension`` ancestry collecting base
+        type names while avoiding cycles.
+        """
         if visited is None:
             visited = set()
 
@@ -110,14 +217,13 @@ class XSDParser:
                     base_name = _local_name(base)
                     if base_name in self.complex_types:
                         parent_chain = self._get_extension_chain(
-                            self.complex_types[base_name],
-                            base_name,
-                            visited.copy()
+                            self.complex_types[base_name], base_name, visited.copy()
                         )
                         return [base_name] + parent_chain
         return []
 
     def _find_element(self, name: str) -> Optional[ET.Element]:
+        """Locate a top-level element by local name."""
         for element in self.root.findall(f"{XS_NS}element"):
             if element.get("name") == name:
                 return element
@@ -132,6 +238,12 @@ class XSDParser:
         depth: int = 0,
         extension_depth: int = 0,
     ) -> RuleNode:
+        """Build a :class:`RuleNode` for an XSD element.
+
+        This is the core recursive routine. It resolves references, applies
+        depth and extension truncation rules, identifies field versus section
+        nodes, and collects enumerations and occurrence constraints.
+        """
         # Check depth limits
         if depth > self.config.max_recursion_depth:
             return RuleNode(
@@ -167,7 +279,9 @@ class XSDParser:
         complex_type = element.find(f"{XS_NS}complexType")
         element_type = element.get("type")
 
-        if name == "extension" or (ref_name == "extension" and not self.config.resolve_extension_refs):
+        if name == "extension" or (
+            ref_name == "extension" and not self.config.resolve_extension_refs
+        ):
             visited.discard(xpath)
             if ref_name and added_to_chain:
                 ref_chain.discard(ref_name)
@@ -212,7 +326,7 @@ class XSDParser:
                         notes=[
                             "extension_chain_truncated",
                             f"inherits_from_{len(chain)}_types",
-                            f"base_types: {', '.join(truncated_chain)}"
+                            f"base_types: {', '.join(truncated_chain)}",
                         ],
                         description=f"Complex type with {len(chain)}-level inheritance (truncated at depth {self.config.max_extension_depth})",
                     )
@@ -241,8 +355,18 @@ class XSDParser:
                 if type_local in self.extension_chains:
                     new_ext_depth += len(self.extension_chains[type_local])
 
+            ct_local_name = _local_name(element_type) if element_type else None
+            ct_element = (
+                complex_type
+                if complex_type is not None
+                else (
+                    self.complex_types[ct_local_name]
+                    if (ct_local_name and ct_local_name in self.complex_types)
+                    else None
+                )
+            )
             children = self._parse_complex_content(
-                complex_type if complex_type is not None else self.complex_types.get(_local_name(element_type)),
+                ct_element,
                 parent_xpath=xpath,
                 visited=visited,
                 ref_chain=ref_chain,
@@ -279,18 +403,30 @@ class XSDParser:
         )
 
     def _parse_inline_simple_type(self, node: ET.Element) -> tuple[str, List[str]]:
+        """Extract base type & enumerations from an inline ``simpleType``.
+
+        Falls back to collecting enumerations from referenced base simple types
+        when the inline restriction provides none.
+        """
         restriction = node.find(f"{XS_NS}restriction")
         if restriction is None:
             return "string", []
-        base = _local_name(restriction.get("base")) or "string"
-        enums = [
+        raw_base = restriction.get("base")
+        base_local = _local_name(raw_base)
+        base = base_local if base_local else "string"
+        enums_raw = [
             enum.get("value")
             for enum in restriction.findall(f"{XS_NS}enumeration")
             if enum.get("value") is not None
         ]
+        enums: List[str] = [e for e in enums_raw if isinstance(e, str)]
         if not enums:
-            enums = self._collect_enum_values(base)
-        return base, enums
+            enums_collected = self._collect_enum_values(base)
+        else:
+            enums_collected = enums
+        # Guarantee list[str]
+        clean = [e for e in enums_collected if isinstance(e, str)]
+        return base, clean
 
     def _parse_complex_content(
         self,
@@ -301,6 +437,7 @@ class XSDParser:
         depth: int = 0,
         extension_depth: int = 0,
     ) -> List[RuleNode]:
+        """Parse complex content (sequence/choice/all) into child nodes."""
         if node is None:
             return []
         sequence = node.find(f"{XS_NS}sequence")
@@ -315,8 +452,12 @@ class XSDParser:
             for child in container.findall(f"{XS_NS}element"):
                 child_kind = "choice" if container is choice else "sequence"
                 child_node = self._build_node(
-                    child, parent_xpath, visited, ref_chain,
-                    depth=depth, extension_depth=extension_depth
+                    child,
+                    parent_xpath,
+                    visited,
+                    ref_chain,
+                    depth=depth,
+                    extension_depth=extension_depth,
                 )
                 if child_kind == "choice":
                     # mark grouping via note for UI consumption
@@ -326,22 +467,31 @@ class XSDParser:
         return children
 
     def _resolve_type(self, type_name: Optional[str]) -> tuple[str, List[str]]:
+        """Resolve a named (possibly derived) simple type to base + enums.
+
+        Always returns a concrete base type string (defaults to "string").
+        """
         if not type_name:
             return "string", []
-        local_type = _local_name(type_name)
+        local_type = _local_name(type_name) or "string"
         enums = self._collect_enum_values(local_type)
-        base = self.simple_types.get(local_type)
-        data_type = local_type
-        if base and base.base:
-            data_type = base.base
+        simple_meta = self.simple_types.get(local_type)
+        data_type = (
+            simple_meta.base if (simple_meta and simple_meta.base) else local_type
+        )
         return data_type, enums
 
     def _is_complex_type(self, type_name: Optional[str]) -> bool:
+        """Return True if ``type_name`` refers to a known complexType."""
         if not type_name:
             return False
         return _local_name(type_name) in self.complex_types
 
     def _collect_enum_values(self, type_name: Optional[str]) -> List[str]:
+        """Collect enumeration values walking up the simpleType base chain.
+
+        Ensures the returned list only contains non-empty strings.
+        """
         values: List[str] = []
         seen: set[str] = set()
         current = _local_name(type_name)
@@ -353,13 +503,20 @@ class XSDParser:
             if simple is None:
                 break
             if simple.enumerations:
-                values.extend(simple.enumerations)
+                values.extend([v for v in simple.enumerations if isinstance(v, str)])
             current = simple.base
         return values
 
     def _resolve_reference(
         self, element: ET.Element, ref_chain: set[str]
     ) -> tuple[ET.Element, Optional[str], bool]:
+        """Resolve an ``element ref`` into a concrete element clone.
+
+        Returns a tuple of (resolved_element, referenced_name, added_to_chain)
+        where ``added_to_chain`` indicates whether the referenced name was
+        inserted into the active reference cycle guard and therefore needs
+        removal by the caller after processing.
+        """
         ref = element.get("ref")
         if not ref:
             return element, None, False
@@ -396,7 +553,9 @@ class XSDParser:
                 resolved.append(deepcopy(child))
 
         if self.reference_cache is not None:
-            self.reference_cache[referenced_name] = ET.tostring(resolved, encoding="unicode")
+            self.reference_cache[referenced_name] = ET.tostring(
+                resolved, encoding="unicode"
+            )
 
         # Override occurrence constraints from referencing element
         for attr in ("minOccurs", "maxOccurs"):
@@ -425,16 +584,27 @@ def _local_name(value: Optional[str]) -> Optional[str]:
     return value
 
 
-def parse_xsd(xsd_path: Path, root_name: str = "HPXML",
-             config: Optional[ParserConfig] = None) -> RuleNode:
-    """Convenience wrapper returning the rule tree rooted at ``root_name``.
+def parse_xsd(
+    xsd_path: Path, root_name: str = "HPXML", config: Optional[ParserConfig] = None
+) -> RuleNode:
+    """Parse an HPXML XSD file and return a normalized rule tree.
+
+    This is a convenience wrapper around :class:`XSDParser` for callers that
+    do not need incremental parsing control.
 
     Args:
-        xsd_path: Path to XSD schema file
-        root_name: Name of root element to parse from
-        config: Optional parser configuration for depth limits and extension handling
+        xsd_path: Path to the XSD schema file.
+        root_name: Name of the document root element (defaults to "HPXML").
+        config: Optional :class:`ParserConfig` instance to adjust limits.
 
     Returns:
-        RuleNode tree starting from root_name
+        Root :class:`RuleNode` for the parsed schema.
+
+    Example:
+        from pathlib import Path
+        from hpxml_schema_api.xsd_parser import parse_xsd
+
+        root = parse_xsd(Path("HPXML.xsd"))
+        print("Total top-level children:", len(root.children))
     """
     return XSDParser(Path(xsd_path), config=config).parse(root_name=root_name)
